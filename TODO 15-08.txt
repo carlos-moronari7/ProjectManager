@@ -1,0 +1,71 @@
+1. Tasks & Work Items
+
+Create, assign, and track tasks.
+
+Set priorities (high, medium, low).
+
+Add descriptions, attachments, or links.
+
+Set deadlines and reminders.
+
+2. Projects & Milestones
+
+Organize multiple projects in one place.
+
+Define milestones (major points or goals).
+
+Track progress against timelines.
+
+3. Team & People Management
+
+Assign tasks to team members.
+
+Track workload and availability.
+
+Allow team collaboration (comments, mentions).
+
+4. Time & Scheduling
+
+Gantt charts, calendars, or timelines.
+
+Track time spent on tasks.
+
+Visualize overlapping deadlines or dependencies.
+
+5. Budget & Resources
+
+Track project costs.
+
+Monitor resource allocation (people, tools, equipment).
+
+Forecast over- or under-budget risks.
+
+6. Communication & Collaboration
+
+Chat, comment, or discuss tasks.
+
+Share files and documents.
+
+Receive notifications and updates.
+
+7. Reports & Dashboards
+
+See progress in real-time.
+
+Generate status reports for stakeholders.
+
+Identify bottlenecks and risks.
+
+8. Risk & Issue Tracking
+
+Log risks and problems.
+
+Assign responsibility for solving them.
+
+Track resolutions and impact.
+
+9. Integrations
+
+Connect with tools like Slack, email, GitHub, or Google Drive.
+
+Automate reminders, updates, or reports.
