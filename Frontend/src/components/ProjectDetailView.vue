@@ -20,27 +20,9 @@
         </div>
         <SkeletonLoader v-if="projectStore.loading.tasks" type="list" :count="5" />
         <div v-else class="kanban-board">
-            <TaskColumn 
-                title="To Do" 
-                status="pending" 
-                :tasks="tasksByStatus.pending || []" 
-                @task-click="openTaskDetail" 
-                @task-moved="handleTaskMoved" 
-            />
-            <TaskColumn 
-                title="In Progress" 
-                status="in_progress" 
-                :tasks="tasksByStatus.in_progress || []" 
-                @task-click="openTaskDetail" 
-                @task-moved="handleTaskMoved"
-            />
-            <TaskColumn 
-                title="Completed" 
-                status="completed" 
-                :tasks="tasksByStatus.completed || []" 
-                @task-click="openTaskDetail" 
-                @task-moved="handleTaskMoved"
-            />
+            <TaskColumn title="To Do" status="pending" :tasks="tasksByStatus.pending || []" @task-click="openTaskDetail" />
+            <TaskColumn title="In Progress" status="in_progress" :tasks="tasksByStatus.in_progress || []" @task-click="openTaskDetail" />
+            <TaskColumn title="Completed" status="completed" :tasks="tasksByStatus.completed || []" @task-click="openTaskDetail" />
         </div>
       </div>
 
@@ -99,10 +81,6 @@ const tasksByStatus = computed(() => {
 
 const openTaskDetail = (task) => {
     selectedTask.value = task;
-};
-
-const handleTaskMoved = ({ taskId, newStatus }) => {
-    projectStore.updateTaskStatus(taskId, newStatus);
 };
 
 onMounted(() => {

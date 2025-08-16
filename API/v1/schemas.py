@@ -35,26 +35,6 @@ class ProjectMemberResponse(BaseModel):
     class Config:
         from_attributes = True
 
-# --- Project Schemas ---
-class ProjectBase(BaseModel):
-    name: str
-    description: Optional[str] = None
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    budget: Optional[float] = None
-    status: str = 'in_progress'
-
-class ProjectCreate(ProjectBase):
-    pass
-
-class ProjectResponse(ProjectBase):
-    id: int
-    owner_id: int
-    project_members: List[ProjectMemberResponse] = []
-    class Config:
-        from_attributes = True
-
-# --- Milestone Schemas ---
 class MilestoneBase(BaseModel):
     name: str
     description: Optional[str] = None
@@ -70,6 +50,38 @@ class MilestoneResponse(MilestoneBase):
     created_at: datetime
     class Config:
         from_attributes = True
+        
+# --- Project Schemas ---
+class ProjectBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    budget: Optional[float] = None
+    status: str = 'in_progress'
+
+class ProjectCreate(ProjectBase):
+    pass
+
+class ProjectResponse(ProjectBase):
+    id: int
+    owner_id: int
+    progress: int
+    project_members: List[ProjectMemberResponse] = []
+    class Config:
+        from_attributes = True
+
+# --- File Schemas ---
+class ProjectFileResponse(BaseModel):
+    id: int
+    project_id: int
+    file_name: str
+    content_type: Optional[str] = None
+    file_size: Optional[int] = None
+    uploaded_at: datetime
+    uploaded_by_id: int
+    class Config:
+        from_attributes = True
 
 # --- Task Schemas ---
 class TaskBase(BaseModel):
@@ -80,7 +92,6 @@ class TaskBase(BaseModel):
     assignee_id: Optional[int] = None
     due_date: Optional[date] = None
     reminder_date: Optional[datetime] = None
-    attachments: Optional[str] = None
 
 class TaskCreate(TaskBase):
     pass
@@ -89,24 +100,32 @@ class TaskResponse(TaskBase):
     id: int
     project_id: int
     created_at: datetime
+    files: List[ProjectFileResponse] = []
     class Config:
         from_attributes = True
 
 class TaskDependencyCreate(BaseModel):
     depends_on_task_id: int
 
+# --- Mention Schemas ---
+class MentionResponse(BaseModel):
+    user: UserResponse
+    class Config:
+        from_attributes = True
+
 # --- Comment Schemas ---
 class CommentBase(BaseModel):
     content: str
 
 class CommentCreate(CommentBase):
-    pass
+    mentioned_user_ids: Optional[List[int]] = None
 
 class CommentResponse(CommentBase):
     id: int
     task_id: int
     author_id: int
     created_at: datetime
+    mentions: List[MentionResponse] = []
     class Config:
         from_attributes = True
 
@@ -153,20 +172,12 @@ class IssueResponse(IssueBase):
     class Config:
         from_attributes = True
 
-# --- File Schemas ---
-class ProjectFileResponse(BaseModel):
-    id: int
-    project_id: int
-    file_name: str
-    content_type: Optional[str] = None
-    file_size: Optional[int] = None
-    uploaded_at: datetime
-    uploaded_by_id: int
-    
-    class Config:
-        from_attributes = True
-
 # --- Report Schemas ---
+class TeamWorkloadResponse(BaseModel):
+    assignee_id: int
+    email: EmailStr
+    open_tasks_count: int
+
 class ProjectSummaryResponse(BaseModel):
     project_id: int
     project_name: str

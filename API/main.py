@@ -1,8 +1,9 @@
 from fastapi import FastAPI
-from core.config import settings
-from v1.routers import projects, users, tasks, comments, admin, milestones, dependencies, timelogs, issues, reports, notifications, files
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import timedelta
+
+from core.config import settings
+from v1.routers import projects, users, tasks, comments, admin, milestones, dependencies, timelogs, issues, reports, notifications, files
 
 app = FastAPI(
     title="Project Management API",
@@ -10,18 +11,14 @@ app = FastAPI(
     version="1.0.0"
 )
 
-origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+if settings.CORS_ORIGINS:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.CORS_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 app.include_router(admin.router, prefix=settings.API_V1_STR)
 app.include_router(users.router, prefix=settings.API_V1_STR)

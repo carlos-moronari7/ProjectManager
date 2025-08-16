@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, case
+from typing import List
 
 from core.database import get_db
 from v1.auth import get_current_user
 from v1.models import User, Project, Task, ProjectMember
-from v1.schemas import ProjectSummaryResponse
+from v1.schemas import ProjectSummaryResponse, TeamWorkloadResponse
 
 router = APIRouter(
     prefix="/reports",
@@ -51,3 +52,19 @@ def get_project_summary(
         "progress_percentage": progress,
         "tasks_by_status": dict(tasks_by_status)
     }
+
+@router.get("/team_workload", response_model=List[TeamWorkloadResponse])
+def get_team_workload(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role.name not in ['superadmin', 'manager']:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view team reports")
+
+    workload = db.query(
+        User.id.label("assignee_id"),
+        User.email,
+        func.count(case((Task.status != 'completed', Task.id), else_=None)).label("open_tasks_count")
+    ).outerjoin(Task, User.id == Task.assignee_id).group_by(User.id, User.email).all()
+
+    return workload

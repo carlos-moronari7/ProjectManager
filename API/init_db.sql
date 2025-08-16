@@ -1,4 +1,4 @@
-DROP TABLE IF EXISTS project_files, notifications, issues, time_logs, task_dependencies, comments, tasks, milestones, project_members, projects, users, roles CASCADE;
+DROP TABLE IF EXISTS mentions, task_files, project_files, notifications, issues, time_logs, task_dependencies, comments, tasks, milestones, project_members, projects, users, roles CASCADE;
 
 CREATE TABLE roles (
     id SERIAL PRIMARY KEY,
@@ -12,7 +12,7 @@ CREATE TABLE users (
     hashed_password VARCHAR(255) NOT NULL,
     is_active BOOLEAN DEFAULT TRUE,
     role_id INTEGER NOT NULL,
-    availability_status VARCHAR(50) DEFAULT 'available',
+    availability_status VARCHAR(50) DEFAULT 'available', -- For team workload tracking
     FOREIGN KEY (role_id) REFERENCES roles (id)
 );
 
@@ -25,6 +25,7 @@ CREATE TABLE projects (
     end_date DATE,
     budget NUMERIC(10, 2),
     status VARCHAR(50) DEFAULT 'in_progress',
+    progress INTEGER DEFAULT 0, -- For progress tracking
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (owner_id) REFERENCES users (id)
 );
@@ -74,9 +75,16 @@ CREATE TABLE tasks (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     due_date DATE,
     reminder_date TIMESTAMP WITH TIME ZONE,
-    attachments TEXT,
     FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
     FOREIGN KEY (assignee_id) REFERENCES users (id)
+);
+
+CREATE TABLE task_files (
+    task_id INTEGER NOT NULL,
+    file_id INTEGER NOT NULL,
+    PRIMARY KEY (task_id, file_id),
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY (file_id) REFERENCES project_files(id) ON DELETE CASCADE
 );
 
 CREATE TABLE task_dependencies (
@@ -96,6 +104,15 @@ CREATE TABLE comments (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE CASCADE,
     FOREIGN KEY (author_id) REFERENCES users (id)
+);
+
+CREATE TABLE mentions (
+    id SERIAL PRIMARY KEY,
+    comment_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE time_logs (
@@ -139,7 +156,6 @@ INSERT INTO roles (id, name, description) VALUES
 (2, 'manager', 'Can create and manage projects.'),
 (3, 'member', 'A standard user who can be assigned to projects.');
 
--- 'password' ---
 INSERT INTO users (email, hashed_password, role_id) VALUES 
 ('admin@example.com', '$argon2id$v=19$m=65536,t=3,p=4$BaCU0tpbyzlH6H1PCSFEiA$qzCj9VGHMNkltiSwhsHgwzcu7GSB2O4pvPcesd0t0xw', 1),
 ('manager@example.com', '$argon2id$v=19$m=65536,t=3,p=4$BaCU0tpbyzlH6H1PCSFEiA$qzCj9VGHMNkltiSwhsHgwzcu7GSB2O4pvPcesd0t0xw', 2);

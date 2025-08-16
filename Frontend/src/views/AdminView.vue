@@ -10,6 +10,10 @@
             <i class="fa-solid fa-users nav-icon"></i>
             <span>User Management</span>
           </RouterLink>
+          <RouterLink to="/admin/reports" class="admin-nav-link">
+            <i class="fa-solid fa-chart-line nav-icon"></i>
+            <span>Reports</span>
+          </RouterLink>
           <a href="#" class="admin-nav-link disabled" title="Coming Soon">
             <i class="fa-solid fa-shield-halved nav-icon"></i>
             <span>Roles & Permissions</span>
@@ -21,7 +25,6 @@
         </nav>
       </aside>
       <main class="admin-content">
-        <!-- The nested route component (e.g., UserManagement) will be rendered here -->
         <RouterView />
       </main>
     </div>

@@ -9,6 +9,12 @@ task_dependency_table = Table(
     Column('depends_on_task_id', Integer, ForeignKey('tasks.id', ondelete="CASCADE"), primary_key=True)
 )
 
+task_files_table = Table(
+    'task_files', Base.metadata,
+    Column('task_id', Integer, ForeignKey('tasks.id', ondelete="CASCADE"), primary_key=True),
+    Column('file_id', Integer, ForeignKey('project_files.id', ondelete="CASCADE"), primary_key=True)
+)
+
 class Role(Base):
     __tablename__ = "roles"
     id = Column(Integer, primary_key=True, index=True)
@@ -35,18 +41,19 @@ class Project(Base):
     end_date = Column(Date)
     budget = Column(Numeric(10, 2))
     status = Column(String, default='in_progress')
+    progress = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     members = relationship("User", secondary="project_members", backref="projects")
     milestones = relationship("Milestone", back_populates="project", cascade="all, delete-orphan")
     files = relationship("ProjectFile", back_populates="project", cascade="all, delete-orphan")
-    project_members = relationship("ProjectMember", cascade="all, delete-orphan") # ADDED THIS RELATIONSHIP
+    project_members = relationship("ProjectMember", cascade="all, delete-orphan", overlaps="members,projects")
 
 class ProjectMember(Base):
     __tablename__ = "project_members"
     project_id = Column(Integer, ForeignKey("projects.id"), primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
     role_id = Column(Integer, ForeignKey("roles.id"))
-    user = relationship("User", overlaps="projects,members")
+    user = relationship("User", overlaps="members,projects")
     role = relationship("Role")
 
 class ProjectFile(Base):
@@ -85,11 +92,12 @@ class Task(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     due_date = Column(Date)
     reminder_date = Column(DateTime(timezone=True))
-    attachments = Column(Text)
     dependencies = relationship("Task", secondary=task_dependency_table, 
                                 primaryjoin=id == task_dependency_table.c.task_id,
                                 secondaryjoin=id == task_dependency_table.c.depends_on_task_id,
                                 backref="dependents")
+    files = relationship("ProjectFile", secondary=task_files_table)
+    project = relationship("Project")
 
 class Comment(Base):
     __tablename__ = "comments"
@@ -98,6 +106,16 @@ class Comment(Base):
     task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
     author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    mentions = relationship("Mention", cascade="all, delete-orphan")
+    task = relationship("Task")
+
+class Mention(Base):
+    __tablename__ = "mentions"
+    id = Column(Integer, primary_key=True, index=True)
+    comment_id = Column(Integer, ForeignKey("comments.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    user = relationship("User")
 
 class TimeLog(Base):
     __tablename__ = "time_logs"

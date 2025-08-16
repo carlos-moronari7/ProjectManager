@@ -8,6 +8,7 @@ export const useProjectStore = defineStore('project', {
     tasks: [],
     members: [],
     files: [],
+    milestones: [],
     allUsers: [],
     allRoles: [],
     loading: {
@@ -15,6 +16,7 @@ export const useProjectStore = defineStore('project', {
       tasks: false,
       members: false,
       files: false,
+      milestones: false,
     },
   }),
   getters: {
@@ -31,36 +33,55 @@ export const useProjectStore = defineStore('project', {
         const response = await apiClient.get(`/projects/${projectId}`);
         this.project = response.data;
       } catch (error) {
-        console.error('Failed to fetch project details', error);
         useUiStore().showToast('Failed to load project details.', 'error');
       } finally {
         this.loading.details = false;
       }
     },
-    async fetchProjectData(projectId) {
-        this.loading.tasks = true;
-        this.loading.members = true;
-        this.loading.files = true;
+    async updateTaskStatus(taskId, newStatus) {
+        const task = this.tasks.find(t => t.id === taskId);
+        if (!task) return;
+
+        const originalStatus = task.status;
+        task.status = newStatus;
+
         try {
-            const [tasksRes, membersRes, filesRes, usersRes, rolesRes] = await Promise.all([
+            const payload = { ...task, status: newStatus };
+            delete payload.id;
+            delete payload.project_id;
+            delete payload.created_at;
+            delete payload.files;
+
+            await apiClient.put(`/tasks/${taskId}`, payload);
+            
+        } catch (error) {
+            task.status = originalStatus; // Revert on failure
+            useUiStore().showToast('Failed to update task status.', 'error');
+        }
+    },
+    async fetchProjectData(projectId) {
+        const dataTypes = ['tasks', 'members', 'files', 'milestones'];
+        dataTypes.forEach(type => this.loading[type] = true);
+        
+        try {
+            const [tasksRes, membersRes, filesRes, usersRes, rolesRes, milestonesRes] = await Promise.all([
                 apiClient.get(`/projects/${projectId}/tasks/`),
                 apiClient.get(`/projects/${projectId}/members`),
                 apiClient.get(`/projects/${projectId}/files`),
                 apiClient.get('/users/'),
                 apiClient.get('/admin/roles'),
+                apiClient.get(`/projects/${projectId}/milestones/`),
             ]);
             this.tasks = tasksRes.data;
             this.members = membersRes.data;
             this.files = filesRes.data;
             this.allUsers = usersRes.data;
             this.allRoles = rolesRes.data;
+            this.milestones = milestonesRes.data;
         } catch (error) {
-            console.error('Failed to fetch project data', error);
             useUiStore().showToast('Failed to load project data.', 'error');
         } finally {
-            this.loading.tasks = false;
-            this.loading.members = false;
-            this.loading.files = false;
+            dataTypes.forEach(type => this.loading[type] = false);
         }
     },
     async createTask(projectId, taskData) {
@@ -69,7 +90,6 @@ export const useProjectStore = defineStore('project', {
             this.tasks.push(response.data);
             useUiStore().showToast('Task created successfully!');
         } catch (error) {
-            console.error('Failed to create task', error);
             useUiStore().showToast(error.response?.data?.detail || 'Failed to create task.', 'error');
         }
     },
@@ -82,7 +102,6 @@ export const useProjectStore = defineStore('project', {
             await this.fetchProjectData(projectId);
             useUiStore().showToast('Member added successfully!');
         } catch (error) {
-            console.error('Failed to add member', error);
             useUiStore().showToast(error.response?.data?.detail || 'Failed to add member.', 'error');
         }
     },
@@ -95,7 +114,6 @@ export const useProjectStore = defineStore('project', {
             this.files.push(response.data);
             useUiStore().showToast('File uploaded successfully!');
         } catch (error) {
-            console.error('Failed to upload file', error);
             useUiStore().showToast('Failed to upload file.', 'error');
         } finally {
             this.loading.files = false;
@@ -106,7 +124,6 @@ export const useProjectStore = defineStore('project', {
             const response = await apiClient.get(`/files/${fileId}/download`);
             window.open(response.data.url, '_blank');
         } catch (error) {
-            console.error('Failed to get download URL', error);
             useUiStore().showToast('Could not get download link.', 'error');
         }
     }

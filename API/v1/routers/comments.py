@@ -1,25 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List
 
 from core.database import get_db
-from pydantic import BaseModel
 from v1.auth import get_current_user
-from v1.models import User, Task, ProjectMember, Comment, Notification
+from v1.models import User, Task, ProjectMember, Comment, Notification, Mention
 from v1.schemas import CommentCreate, CommentResponse
-
-class CommentBase(BaseModel):
-    content: str
-
-class CommentCreate(CommentBase):
-    pass
-
-class CommentResponse(CommentBase):
-    id: int
-    task_id: int
-    author_id: int
-    class Config:
-        from_attributes = True
 
 router = APIRouter(
     tags=["comments"],
@@ -49,17 +35,25 @@ def create_comment_on_task(
 ):
     task = get_task_and_check_membership(task_id, current_user.id, db)
     
-    db_comment = Comment(**comment.dict(), task_id=task_id, author_id=current_user.id)
+    db_comment = Comment(content=comment.content, task_id=task_id, author_id=current_user.id)
     db.add(db_comment)
     db.commit()
-    db.refresh(db_comment)
-    
-    if task.assignee_id and task.assignee_id != current_user.id:
-        notification_msg = f"New comment on task '{task.title}': {db_comment.content[:30]}..."
-        notification = Notification(user_id=task.assignee_id, message=notification_msg)
-        db.add(notification)
+
+    # Handle mentions
+    if comment.mentioned_user_ids:
+        for user_id in set(comment.mentioned_user_ids):
+            # Ensure mentioned user is part of the project
+            check_project_membership(task.project_id, user_id, db)
+            if user_id != current_user.id:
+                mention = Mention(comment_id=db_comment.id, user_id=user_id)
+                db.add(mention)
+                
+                notification_msg = f"@{current_user.email} mentioned you in a comment on task '{task.title}'"
+                notification = Notification(user_id=user_id, message=notification_msg)
+                db.add(notification)
         db.commit()
-        
+    
+    db.refresh(db_comment)
     return db_comment
 
 @router.get("/tasks/{task_id}/comments/", response_model=List[CommentResponse])
@@ -69,7 +63,7 @@ def read_comments_for_task(
     current_user: User = Depends(get_current_user)
 ):
     get_task_and_check_membership(task_id, current_user.id, db)
-    return db.query(Comment).filter(Comment.task_id == task_id).all()
+    return db.query(Comment).options(joinedload(Comment.mentions).joinedload(Mention.user)).filter(Comment.task_id == task_id).all()
 
 @router.delete("/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_comment(
