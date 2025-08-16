@@ -1,38 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List
 
-from v1.models import User, Role, Project, ProjectMember
-from v1.schemas import ProjectCreate, ProjectResponse, MemberCreate, ProjectMemberResponse
-
 from core.database import get_db
-from pydantic import BaseModel
 from v1.auth import get_current_user
 from v1.models import User, Role, Project, ProjectMember
-from .users import UserResponse, RoleResponse
-
-class ProjectBase(BaseModel):
-    name: str
-    description: str | None = None
-
-class ProjectCreate(ProjectBase):
-    pass
-
-class ProjectResponse(ProjectBase):
-    id: int
-    owner_id: int
-    class Config:
-        from_attributes = True
-
-class MemberCreate(BaseModel):
-    user_id: int
-    role_id: int
-
-class ProjectMemberResponse(BaseModel):
-    role: RoleResponse
-    user: UserResponse
-    class Config:
-        from_attributes = True
+from v1.schemas import ProjectCreate, ProjectResponse, MemberCreate, ProjectMemberResponse
 
 router = APIRouter(
     prefix="/projects",
@@ -56,22 +29,45 @@ def create_project(project: ProjectCreate, db: Session = Depends(get_db), curren
     first_member = ProjectMember(project_id=db_project.id, user_id=current_user.id, role_id=manager_role.id)
     db.add(first_member)
     db.commit()
+    db.refresh(db_project)
+    
+    # Eagerly load the members for the response
+    db.query(Project).filter(Project.id == db_project.id).options(
+        joinedload(Project.project_members).joinedload(ProjectMember.user).joinedload(User.role),
+        joinedload(Project.project_members).joinedload(ProjectMember.role)
+    ).first()
     
     return db_project
 
 @router.get("/", response_model=List[ProjectResponse])
 def read_projects_for_user(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    projects = db.query(Project).join(ProjectMember).filter(ProjectMember.user_id == current_user.id).all()
+    projects = db.query(Project).join(ProjectMember).filter(
+        ProjectMember.user_id == current_user.id
+    ).options(
+        joinedload(Project.project_members).joinedload(ProjectMember.user).joinedload(User.role),
+        joinedload(Project.project_members).joinedload(ProjectMember.role)
+    ).distinct().all()
     return projects
 
 @router.get("/{project_id}", response_model=ProjectResponse)
 def read_project(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    project = db.query(Project).join(ProjectMember).filter(
-        Project.id == project_id,
+    # First check for membership
+    membership = db.query(ProjectMember).filter(
+        ProjectMember.project_id == project_id,
         ProjectMember.user_id == current_user.id
     ).first()
-    if not project:
+    if not membership:
         raise HTTPException(status_code=404, detail="Project not found or you do not have access")
+
+    # Then fetch the project with all its data
+    project = db.query(Project).filter(Project.id == project_id).options(
+        joinedload(Project.project_members).joinedload(ProjectMember.user).joinedload(User.role),
+        joinedload(Project.project_members).joinedload(ProjectMember.role)
+    ).first()
+    
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+        
     return project
 
 @router.get("/{project_id}/members", response_model=List[ProjectMemberResponse])

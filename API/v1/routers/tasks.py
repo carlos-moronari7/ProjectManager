@@ -6,7 +6,7 @@ from datetime import date
 from core.database import get_db
 from pydantic import BaseModel
 from v1.auth import get_current_user
-from v1.models import User, ProjectMember, Task
+from v1.models import User, ProjectMember, Task, Notification
 from v1.schemas import TaskCreate, TaskResponse
 
 class TaskBase(BaseModel):
@@ -47,10 +47,20 @@ def create_task_for_project(
 ):
     check_project_membership(project_id, current_user.id, db)
     
+    if task.assignee_id:
+        check_project_membership(project_id, task.assignee_id, db)
+
     db_task = Task(**task.dict(), project_id=project_id)
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
+    
+    if db_task.assignee_id:
+        notification_msg = f"You have been assigned a new task: '{db_task.title}'"
+        notification = Notification(user_id=db_task.assignee_id, message=notification_msg)
+        db.add(notification)
+        db.commit()
+
     return db_task
 
 @router.get("/projects/{project_id}/tasks/", response_model=List[TaskResponse])
@@ -65,7 +75,7 @@ def read_tasks_for_project(
 @router.put("/tasks/{task_id}", response_model=TaskResponse)
 def update_task(
     task_id: int,
-    task_update: TaskBase,
+    task_update: TaskCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -74,12 +84,23 @@ def update_task(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
     
     check_project_membership(db_task.project_id, current_user.id, db)
+    
+    original_assignee_id = db_task.assignee_id
         
-    for key, value in task_update.dict().items():
+    update_data = task_update.dict(exclude_unset=True)
+    for key, value in update_data.items():
         setattr(db_task, key, value)
         
     db.commit()
     db.refresh(db_task)
+    
+    new_assignee_id = db_task.assignee_id
+    if new_assignee_id and new_assignee_id != original_assignee_id:
+        notification_msg = f"You have been assigned a new task: '{db_task.title}'"
+        notification = Notification(user_id=new_assignee_id, message=notification_msg)
+        db.add(notification)
+        db.commit()
+
     return db_task
 
 @router.delete("/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)

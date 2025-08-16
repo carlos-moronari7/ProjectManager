@@ -19,7 +19,17 @@ apiClient.interceptors.request.use(
         return config; 
     },
     error => {
-    
+        return Promise.reject(error);
+    }
+);
+
+apiClient.interceptors.response.use(
+    response => response,
+    error => {
+        if (error.response && error.response.status === 401) {
+            const authStore = useAuthStore();
+            authStore.logout();
+        }
         return Promise.reject(error);
     }
 );

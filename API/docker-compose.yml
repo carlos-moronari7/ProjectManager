@@ -18,6 +18,24 @@ services:
     networks:
       - project_network
 
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000" 
+      - "9001:9001" 
+    volumes:
+      - minio_data:/data
+    env_file:
+      - ./.env
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - project_network
+
   api:
     build: .
     volumes:
@@ -27,6 +45,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      minio:
+        condition: service_healthy
     env_file:
       - ./.env
     networks:
@@ -34,6 +54,7 @@ services:
 
 volumes:
   postgres_data:
+  minio_data:
 
 networks:
   project_network:
